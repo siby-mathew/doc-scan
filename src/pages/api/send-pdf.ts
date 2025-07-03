@@ -1,29 +1,17 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PDFDocument } from "pdf-lib";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import nodemailer from "nodemailer";
-import fs from "fs/promises";
-import path from "path";
-async function clearUploadFolder(folderPath: string) {
-  try {
-    await fs.access(folderPath);
-    const files = await fs.readdir(folderPath);
-    await Promise.all(
-      files.map((file) => fs.unlink(path.join(folderPath, file)))
-    );
-  } catch (err: unknown) {
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as { code: string }).code === "ENOENT"
-    ) {
-      // Folder doesn't exist; create it
-      await fs.mkdir(folderPath, { recursive: true });
-    } else {
-      throw err;
-    }
-  }
-}
+import { randomUUID } from "crypto";
+
+const s3 = new S3Client({
+  region: process.env.AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -31,20 +19,16 @@ export default async function handler(
   if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
 
   const { images } = req.body;
-  if (!Array.isArray(images))
+  if (!Array.isArray(images)) {
     return res.status(400).json({ error: "Invalid input" });
+  }
 
   try {
-    // 1. Clear upload folder
-    const uploadDir = path.join(process.cwd(), "public", "pdfs");
-    await clearUploadFolder(uploadDir);
-
-    // 2. Create PDF from images
+    // 1. Create PDF
     const pdfDoc = await PDFDocument.create();
 
     for (const img of images) {
       const imageBytes = Buffer.from(img.split(",")[1], "base64");
-
       const page = pdfDoc.addPage();
       let embed;
 
@@ -66,14 +50,22 @@ export default async function handler(
 
     const pdfBytes = await pdfDoc.save();
 
-    // 3. Save PDF file to public folder
-    const fileName = `doc-scan-pdf-${Date.now()}.pdf`;
-    const filePath = path.join(uploadDir, fileName);
-    const publicUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/pdfs/${fileName}`;
+    // 2. Upload to S3
+    const fileName = `doc-scan-${Date.now()}-${randomUUID()}.pdf`;
 
-    await fs.writeFile(filePath, pdfBytes);
+    const uploadCommand = new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET!,
+      Key: fileName,
+      Body: Buffer.from(pdfBytes),
+      ContentType: "application/pdf",
+      ACL: "public-read", // Make public if you want to link directly
+    });
 
-    // 4. Send email with link
+    await s3.send(uploadCommand);
+
+    const s3Url = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+
+    // 3. Send Email with link
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -81,17 +73,17 @@ export default async function handler(
         pass: process.env.EMAIL_PASS,
       },
     });
-
+    console.log(s3Url);
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: "sibym.ui@gmail.com",
       subject: "Your PDF is ready",
-      html: `<p>Your PDF is ready. <a href="${publicUrl}" target="_blank">Click here to download</a>.</p>`,
+      html: `<p>Your PDF is ready. <a href="${s3Url}" target="_blank">Click here to download</a>.</p>`,
     });
 
-    return res.status(200).json({ success: true, url: publicUrl });
+    return res.status(200).json({ success: true, url: s3Url });
   } catch (err) {
-    console.error("Error sending PDF:", err);
+    console.error("Error uploading PDF to S3 and sending email:", err);
     return res.status(500).json({ error: "Server Error" });
   }
 }
