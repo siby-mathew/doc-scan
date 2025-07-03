@@ -9,6 +9,7 @@ import {
   useDisclosure,
   Spinner,
 } from "@chakra-ui/react";
+import { PDFDocument } from "pdf-lib";
 
 import { MdDelete } from "react-icons/md";
 
@@ -20,23 +21,73 @@ export const DocPreview: React.FC<{
   reset: () => void;
 }> = ({ images, removeByIndex, selected, swap, reset }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const handleSend = () => {
+
+  const handleSend = async () => {
     if (isOpen) return;
     onOpen();
-    fetch("/api/send-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ images }),
-    })
-      .then(() => {
-        onClose();
-        alert("Attachmnt sent");
-        reset();
-      })
-      .catch(() => {
-        alert("Failed to send email");
-        onClose();
+
+    try {
+      // Step 1: Create PDF from base64 images
+      const pdfDoc = await PDFDocument.create();
+
+      for (const base64 of images) {
+        const imageBytes = Uint8Array.from(atob(base64.split(",")[1]), (c) =>
+          c.charCodeAt(0)
+        );
+
+        let embed;
+        if (base64.startsWith("data:image/png")) {
+          embed = await pdfDoc.embedPng(imageBytes);
+        } else {
+          embed = await pdfDoc.embedJpg(imageBytes);
+        }
+
+        const dims = embed.scale(0.5);
+        const page = pdfDoc.addPage([dims.width, dims.height]);
+        page.drawImage(embed, {
+          x: 0,
+          y: 0,
+          width: dims.width,
+          height: dims.height,
+        });
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+      const pdfFile = new File([pdfBlob], `scan-${Date.now()}.pdf`, {
+        type: "application/pdf",
       });
+
+      // Step 2: Get S3 presigned URL from backend
+      const presigned = await fetch("/api/get-presigned-url");
+      const { uploadUrl, fileUrl } = await presigned.json();
+
+      // Step 3: Upload to S3
+
+      console.log(uploadUrl, fileUrl);
+      await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/pdf",
+        },
+        body: pdfFile,
+      });
+
+      // Step 4: Send file URL to backend to trigger email
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: fileUrl }),
+      });
+
+      onClose();
+      alert("Attachment sent");
+      reset();
+    } catch (err) {
+      console.error("Upload or Email Error:", err);
+      alert("Failed to send email");
+      onClose();
+    }
   };
 
   return (
