@@ -15,7 +15,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const fileName = `uploads/scan-${Date.now()}-${randomUUID()}.pdf`;
+  const fileName = `scan-${Date.now()}-${randomUUID()}.pdf`;
   const command = new PutObjectCommand({
     Bucket: process.env.AWS_S3_BUCKET!,
     Key: fileName,
