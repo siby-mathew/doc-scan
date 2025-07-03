@@ -14,79 +14,6 @@ import { PDFDocument } from "pdf-lib";
 import { FaPlus } from "react-icons/fa";
 import { MdDelete } from "react-icons/md";
 
-function getExifOrientation(base64: string): number {
-  const binary = atob(base64.split(",")[1]);
-  const view = new DataView(
-    new Uint8Array([...binary].map((c) => c.charCodeAt(0))).buffer
-  );
-
-  let offset = 2;
-  while (offset < view.byteLength) {
-    if (view.getUint16(offset) === 0xffe1) {
-      const marker = offset + 4;
-      if (
-        view.getUint32(marker) === 0x45786966 && // "Exif"
-        view.getUint16(marker + 6) === 0x4949 // "II" - Intel format
-      ) {
-        const orientation = view.getUint16(marker + 10);
-        return orientation;
-      }
-    }
-    offset += 2;
-  }
-  return 1;
-}
-
-async function correctImageOrientation(base64: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const orientation = getExifOrientation(base64);
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
-      let { width, height } = img;
-
-      if ([5, 6, 7, 8].includes(orientation)) {
-        canvas.width = height;
-        canvas.height = width;
-      } else {
-        canvas.width = width;
-        canvas.height = height;
-      }
-
-      switch (orientation) {
-        case 2:
-          ctx.transform(-1, 0, 0, 1, width, 0);
-          break;
-        case 3:
-          ctx.transform(-1, 0, 0, -1, width, height);
-          break;
-        case 4:
-          ctx.transform(1, 0, 0, -1, 0, height);
-          break;
-        case 5:
-          ctx.transform(0, 1, 1, 0, 0, 0);
-          break;
-        case 6:
-          ctx.transform(0, 1, -1, 0, height, 0);
-          break;
-        case 7:
-          ctx.transform(0, -1, -1, 0, height, width);
-          break;
-        case 8:
-          ctx.transform(0, -1, 1, 0, 0, width);
-          break;
-        default:
-          break;
-      }
-
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL());
-    };
-    img.src = base64;
-  });
-}
-
 export const DocPreview: React.FC<{
   images: string[];
   removeByIndex: (index: number) => void;
@@ -107,14 +34,8 @@ export const DocPreview: React.FC<{
     try {
       const pdfDoc = await PDFDocument.create();
       for (const base64 of images) {
-        const correctedBase64 =
-          base64.startsWith("data:image/jpeg") ||
-          base64.startsWith("data:image/jpg")
-            ? await correctImageOrientation(base64)
-            : base64;
-        const imageBytes = Uint8Array.from(
-          atob(correctedBase64.split(",")[1]),
-          (c) => c.charCodeAt(0)
+        const imageBytes = Uint8Array.from(atob(base64.split(",")[1]), (c) =>
+          c.charCodeAt(0)
         );
 
         let embed;
