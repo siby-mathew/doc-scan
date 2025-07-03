@@ -1,9 +1,9 @@
 import { Box, Button, Flex } from "@chakra-ui/react";
 import { useId, useState } from "react";
-import { CgScan } from "react-icons/cg";
+
 import { DocPreview } from "./Preview";
 import { swap } from "@utils/index";
-
+import { FiCamera } from "react-icons/fi";
 export const Scanner: React.FC = () => {
   const id = useId();
   const [images, setImages] = useState<string[]>([]);
@@ -26,6 +26,7 @@ export const Scanner: React.FC = () => {
       setImages((prev) => [...prev, imageDataUrl]);
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const removeByIndex = (index: number) => {
@@ -47,9 +48,20 @@ export const Scanner: React.FC = () => {
 
   return (
     <Box w="100%">
-      <Flex w="100%" mb={4}>
+      <Flex
+        w="100%"
+        mb={4}
+        {...(images.length > 0
+          ? {}
+          : {
+              minH: "80vh",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            })}
+      >
         <Button
-          leftIcon={<CgScan />}
+          leftIcon={<FiCamera />}
           size={"lg"}
           as="label"
           htmlFor={id}
@@ -73,6 +85,7 @@ export const Scanner: React.FC = () => {
         removeByIndex={removeByIndex}
         images={images}
         reset={reset}
+        id={id}
       />
     </Box>
   );

@@ -9,8 +9,9 @@ import {
   useDisclosure,
   Spinner,
 } from "@chakra-ui/react";
-import { PDFDocument } from "pdf-lib";
 
+import { PDFDocument } from "pdf-lib";
+import { FaPlus } from "react-icons/fa";
 import { MdDelete } from "react-icons/md";
 
 export const DocPreview: React.FC<{
@@ -19,17 +20,19 @@ export const DocPreview: React.FC<{
   swap: (index: number) => void;
   selected: number;
   reset: () => void;
-}> = ({ images, removeByIndex, selected, swap, reset }) => {
+  id: string;
+}> = ({ images, id, removeByIndex, selected, swap, reset }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
+  const generatePdf = () => {
+    onOpen();
+    setTimeout(() => handleSend());
+  };
   const handleSend = async () => {
     if (isOpen) return;
-    onOpen();
 
     try {
-      // Step 1: Create PDF from base64 images
       const pdfDoc = await PDFDocument.create();
-
       for (const base64 of images) {
         const imageBytes = Uint8Array.from(atob(base64.split(",")[1]), (c) =>
           c.charCodeAt(0)
@@ -58,13 +61,9 @@ export const DocPreview: React.FC<{
         type: "application/pdf",
       });
 
-      // Step 2: Get S3 presigned URL from backend
       const presigned = await fetch("/api/get-presigned-url");
       const { uploadUrl, fileUrl } = await presigned.json();
 
-      // Step 3: Upload to S3
-
-      console.log(uploadUrl, fileUrl);
       await fetch(uploadUrl, {
         method: "PUT",
         headers: {
@@ -73,7 +72,6 @@ export const DocPreview: React.FC<{
         body: pdfFile,
       });
 
-      // Step 4: Send file URL to backend to trigger email
       await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,8 +81,7 @@ export const DocPreview: React.FC<{
       onClose();
       alert("Attachment sent");
       reset();
-    } catch (err) {
-      console.error("Upload or Email Error:", err);
+    } catch {
       alert("Failed to send email");
       onClose();
     }
@@ -107,7 +104,14 @@ export const DocPreview: React.FC<{
                   swap(index);
                 }}
               >
-                <Image borderRadius={5} w="100%" h="auto" src={image} />
+                <Image
+                  borderRadius={5}
+                  w="100%"
+                  src={image}
+                  alt={`Image ${index}`}
+                  h="100%"
+                  objectFit={"cover"}
+                />
                 <Flex
                   position={"absolute"}
                   right={0}
@@ -119,7 +123,9 @@ export const DocPreview: React.FC<{
                   py={2}
                   onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                     e.stopPropagation();
-                    removeByIndex(index);
+                    if (!isOpen) {
+                      removeByIndex(index);
+                    }
                   }}
                 >
                   <Icon as={MdDelete} fontSize={20} />
@@ -127,6 +133,22 @@ export const DocPreview: React.FC<{
               </Box>
             );
           })}
+
+          <Box
+            as="label"
+            bg={"#121212"}
+            borderRadius={5}
+            display={"flex"}
+            justifyContent={"center"}
+            alignItems={"center"}
+            htmlFor={!isOpen ? id : ""}
+            minH={150}
+            _hover={{
+              opacity: 0.8,
+            }}
+          >
+            <Icon as={FaPlus} />
+          </Box>
         </SimpleGrid>
       )}
       {images && images.length > 0 && (
@@ -138,7 +160,7 @@ export const DocPreview: React.FC<{
             </Text>
           </Flex>
           <Flex w="full" mt={4}>
-            <Button w="full" size={"lg"} onClick={handleSend}>
+            <Button w="full" size={"lg"} onClick={generatePdf}>
               {isOpen && <Spinner mr={2} />}
               Create Document
             </Button>
