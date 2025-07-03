@@ -3,8 +3,6 @@ import { PDFDocument } from "pdf-lib";
 import nodemailer from "nodemailer";
 import fs from "fs/promises";
 import path from "path";
-
-// Clears the pdfs folder before saving new files
 async function clearUploadFolder(folderPath: string) {
   try {
     await fs.access(folderPath);
@@ -12,8 +10,13 @@ async function clearUploadFolder(folderPath: string) {
     await Promise.all(
       files.map((file) => fs.unlink(path.join(folderPath, file)))
     );
-  } catch (err: any) {
-    if (err.code === "ENOENT") {
+  } catch (err: unknown) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: string }).code === "ENOENT"
+    ) {
       // Folder doesn't exist; create it
       await fs.mkdir(folderPath, { recursive: true });
     } else {
@@ -21,7 +24,6 @@ async function clearUploadFolder(folderPath: string) {
     }
   }
 }
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
