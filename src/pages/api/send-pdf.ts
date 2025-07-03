@@ -12,6 +12,14 @@ const s3 = new S3Client({
   },
 });
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "2024mb",
+    },
+  },
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -73,7 +81,7 @@ export default async function handler(
         pass: process.env.EMAIL_PASS,
       },
     });
-    console.log(s3Url);
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: "sibym.ui@gmail.com",
