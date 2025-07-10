@@ -1,4 +1,4 @@
-import { Scanner } from "@components/Scanner";
+import { ScannerApp } from "@components/Scanner/index";
 import Head from "next/head";
 
 export default function Home() {
@@ -7,7 +7,7 @@ export default function Home() {
       <Head>
         <title>Doc Scanner</title>
       </Head>
-      <Scanner />
+      <ScannerApp />
     </>
   );
 }
