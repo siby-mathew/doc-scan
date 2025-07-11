@@ -73,10 +73,10 @@ export const createPdf = async (
       callback(!0);
     }
     alert("Attachment sent");
-  } catch {
+  } catch (e) {
     if (callback && typeof callback === "function") {
       callback(!1);
     }
-    alert("Failed to send email");
+    alert(e && e instanceof Error ? e.message : "Failed to send email");
   }
 };
