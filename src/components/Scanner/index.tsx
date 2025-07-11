@@ -16,9 +16,11 @@ import { MdDelete, MdOutlineFileUpload, MdPhotoCamera } from "react-icons/md";
 
 export const ScannerApp: React.FC = () => {
   const uid = useId();
+
   const [docs, setDocs] = useState<string[]>([]);
   const [selected, setSelected] = useState<number>(-1);
   const { isOpen } = useDisclosure();
+
   const onChangeHandler = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -51,12 +53,14 @@ export const ScannerApp: React.FC = () => {
   const handleSend = () => {
     if (!isPending) {
       start();
-      createPdf(docs, (status) => {
-        stop();
-        if (status) {
-          setDocs([]);
-          setSelected(-1);
-        }
+      setTimeout(() => {
+        createPdf(docs, (status) => {
+          stop();
+          if (status) {
+            setDocs([]);
+            setSelected(-1);
+          }
+        });
       });
     }
   };

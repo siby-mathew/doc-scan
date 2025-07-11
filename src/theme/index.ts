@@ -9,6 +9,9 @@ export const theme = extendTheme({
   config,
   styles: {
     global: {
+      "*": {
+        WebkitTapHighlightColor: "transparent",
+      },
       "html, body": {
         fontFamily: '"Roboto", sans-serif',
         bg: "#000",
