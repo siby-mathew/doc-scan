@@ -15,11 +15,10 @@ export default async function handler(
         pass: process.env.EMAIL_PASS,
       },
     });
-    //,savadmv333@gmail.com,jithinvpynadath@gmail.com
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: "savadmv333@gmail.com,jithinvpynadath@gmail.com",
+      to: process.env.TARGET_EMAILS,
       subject: "Scanned Document",
       html: `<p>Your scanned PDF is ready: <a href="${url}" target="_blank">Download PDF</a></p>`,
     });
