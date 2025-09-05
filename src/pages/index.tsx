@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Doc Scanner</title>
+        <title data-build="1.0.2">Doc Scanner</title>
       </Head>
       <ScannerApp />
     </>

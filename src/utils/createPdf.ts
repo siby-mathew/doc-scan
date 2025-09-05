@@ -1,12 +1,25 @@
 import { PageSizes, PDFDocument } from "pdf-lib";
+import api from "../lib/axios";
+
+type FormType = {
+  phone: string;
+  name: string;
+  address: string;
+};
 
 export const createPdf = async (
-  images: string[],
+  { images, meta }: { images: string[]; meta: FormType },
   callback?: (status: boolean) => void
 ) => {
+  const onComplete = (status: boolean) => {
+    if (callback && typeof callback === "function") {
+      callback(status);
+    }
+  };
+
   try {
     const pdfDoc = await PDFDocument.create();
-    // const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
     for (const base64 of images) {
       const imageBytes = Uint8Array.from(atob(base64.split(",")[1]), (c) =>
         c.charCodeAt(0)
@@ -37,46 +50,50 @@ export const createPdf = async (
         width: scaledWidth,
         height: scaledHeight,
       });
-      //   const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
-      //   page.drawText(`Captured on: ${timestamp}`, {
-      //     x: A4_WIDTH - 200,
-      //     y: 20,
-      //     size: 12,
-      //     font: helveticaFont,
-      //     color: rgb(0, 0, 0),
-      //   });
     }
 
     const pdfBytes = await pdfDoc.save();
-    const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+    const pdfBlob = new Blob([pdfBytes as any], { type: "application/pdf" });
     const pdfFile = new File([pdfBlob], `scan-${Date.now()}.pdf`, {
       type: "application/pdf",
     });
 
-    const presigned = await fetch("/api/get-presigned-url");
-    const { uploadUrl, fileUrl } = await presigned.json();
+    const presigned = await api.post("/get-presigned-url");
+    const { uploadUrl, fileUrl } = presigned.data;
 
-    await fetch(uploadUrl, {
+    fetch(uploadUrl, {
       method: "PUT",
       headers: {
         "Content-Type": "application/pdf",
       },
       body: pdfFile,
-    });
+    })
+      .then(() => {
+        api
+          .post(
+            "/send-email",
+            { url: fileUrl, ...meta },
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            }
+          )
 
-    await fetch("/api/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: fileUrl }),
-    });
-    if (callback && typeof callback === "function") {
-      callback(!0);
-    }
-    alert("Attachment sent");
-  } catch (e) {
-    if (callback && typeof callback === "function") {
-      callback(!1);
-    }
-    alert(e && e instanceof Error ? e.message : "Failed to send email");
+          .then((res) => {
+            if (res.data && res.data.success) {
+              onComplete(!0);
+            } else {
+              onComplete(!1);
+            }
+          })
+          .catch(() => {
+            onComplete(!1);
+          });
+      })
+      .catch(() => {
+        onComplete(!1);
+      });
+  } catch {
+    onComplete(!1);
   }
 };

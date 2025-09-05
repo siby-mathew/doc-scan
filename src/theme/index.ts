@@ -1,4 +1,5 @@
 import { extendTheme, type ThemeConfig } from "@chakra-ui/react";
+import { Input, Textarea } from "./Input";
 
 const config: ThemeConfig = {
   initialColorMode: "dark",
@@ -16,8 +17,13 @@ export const theme = extendTheme({
         fontFamily: '"Roboto", sans-serif',
         bg: "#000",
         color: "whiteAlpha.900",
+        fontSize: 16,
       },
     },
+  },
+  components: {
+    Input,
+    Textarea,
   },
 
   colors: {
