@@ -17,12 +17,13 @@ import {
   ModalFooter,
 } from "@chakra-ui/react";
 import { UserDetails } from "@components/form";
+import { OfficeNames } from "@utils/getOffices";
 import { createPdf, fixImageOrientation, swap } from "@utils/index";
 import { useId, useState } from "react";
 import { IoIosArrowBack } from "react-icons/io";
 import { MdDelete, MdOutlineFileUpload, MdPhotoCamera } from "react-icons/md";
 
-export const ScannerApp: React.FC = () => {
+export const ScannerApp: React.FC<{ offices: OfficeNames }> = ({ offices }) => {
   const uid = useId();
 
   const [docs, setDocs] = useState<string[]>([]);
@@ -283,7 +284,7 @@ export const ScannerApp: React.FC = () => {
       )}
 
       <Flex hidden={step !== 0} w="100%" direction={"column"}>
-        <UserDetails key={id} onSubmit={onNext} />
+        <UserDetails key={id} onSubmit={onNext} offices={offices} />
       </Flex>
     </Flex>
   );

@@ -6,6 +6,7 @@ import {
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import { OfficeNames } from "@utils/getOffices";
 import { ReactNode } from "react";
 import {
   FormProvider,
@@ -49,9 +50,10 @@ const Field: React.FC<{
     </Flex>
   );
 };
-export const UserDetails: React.FC<{ onSubmit: (v: FormType) => void }> = ({
-  onSubmit,
-}) => {
+export const UserDetails: React.FC<{
+  onSubmit: (v: FormType) => void;
+  offices: OfficeNames;
+}> = ({ onSubmit, offices }) => {
   const methods = useForm<FormType>({
     mode: "all",
     reValidateMode: "onSubmit",
@@ -104,16 +106,7 @@ export const UserDetails: React.FC<{ onSubmit: (v: FormType) => void }> = ({
             })}
             placeholder="Office"
           >
-            {[
-              "City",
-              "Kilbirnie",
-              "Khandallah",
-              "Karori",
-              "Johnsonville",
-              "Lower Hutt",
-              "Upper Hutt",
-              "Masterton",
-            ].map((value) => (
+            {offices.map((value) => (
               <option key={value} value={value}>
                 {value}
               </option>

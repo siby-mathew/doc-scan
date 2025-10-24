@@ -1,10 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import nodemailer from "nodemailer";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
 
 import { v4 as uuidv4 } from "uuid";
-import { s3 } from "../../lib/s3";
-import { getJsonData } from "@utils/getJsonData";
+
+import { getOffices } from "../../utils/getOffices";
 
 export default async function handler(
   req: NextApiRequest,
@@ -16,9 +20,27 @@ export default async function handler(
   }
 
   try {
+    const s3 = new S3Client({
+      region: process.env.AWS_REGION!,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      },
+    });
+
     const bucketName = process.env.AWS_S3_BUCKET!;
     const key = "data.json";
-    const data = await getJsonData();
+
+    let data: any[] = [];
+    try {
+      const existing = await s3.send(
+        new GetObjectCommand({ Bucket: bucketName, Key: key })
+      );
+      const body = await streamToString(existing.Body as any);
+      data = JSON.parse(body);
+    } catch {
+      data = [];
+    }
 
     const newEntry = {
       id: uuidv4(),
@@ -48,6 +70,19 @@ export default async function handler(
       },
     });
 
+    const _office = getOffices().find(
+      (item) => item.name?.toLowerCase() === office?.toLowerCase()
+    );
+
+    if (_office && _office.email) {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: _office.email,
+        subject: `${office}`,
+        html: `<p>Document received,thank you</p>`,
+      });
+    }
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.TARGET_EMAILS,
@@ -68,4 +103,13 @@ export default async function handler(
       p: process.env.EMAIL_PASS,
     });
   }
+}
+
+function streamToString(stream: any): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    stream.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+  });
 }

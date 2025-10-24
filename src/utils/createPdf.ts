@@ -1,5 +1,4 @@
 import { PageSizes, PDFDocument } from "pdf-lib";
-import api from "../lib/axios";
 
 type FormType = {
   phone: string;
@@ -53,13 +52,13 @@ export const createPdf = async (
     }
 
     const pdfBytes = await pdfDoc.save();
-    const pdfBlob = new Blob([pdfBytes as any], { type: "application/pdf" });
+    const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
     const pdfFile = new File([pdfBlob], `scan-${Date.now()}.pdf`, {
       type: "application/pdf",
     });
 
-    const presigned = await api.post("/get-presigned-url");
-    const { uploadUrl, fileUrl } = presigned.data;
+    const presigned = await fetch("/api/get-presigned-url");
+    const { uploadUrl, fileUrl } = await presigned.json();
 
     fetch(uploadUrl, {
       method: "PUT",
@@ -69,18 +68,14 @@ export const createPdf = async (
       body: pdfFile,
     })
       .then(() => {
-        api
-          .post(
-            "/send-email",
-            { url: fileUrl, ...meta },
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-            }
-          )
-
+        fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: fileUrl, ...meta }),
+        })
+          .then((res) => res.json())
           .then((res) => {
-            if (res.data && res.data.success) {
+            if (res && res.success) {
               onComplete(!0);
             } else {
               onComplete(!1);
