@@ -78,24 +78,8 @@ export default async function handler(
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: _office.email,
-        subject: `
-Re: Confirmation of Customer Due Diligence (CDD) Completion Property: ${address}`,
-        html: `<p>Attention: <br />
-Office Manager,</p>
-
-
-<p>We confirm that full Customer Due Diligence (CDD) has been completed in accordance with the requirements of the Anti-Money Laundering and Countering the Financing of Terrorism Act 2009, for the above-referenced property listed through our ${office} branch.
-</p>
-
-<p>All required identity verification and client risk assessment procedures have been satisfied. No further AML/CFT documentation is required at this stage. Should any additional information be required during the course of the transaction, we will contact you promptly.</p>
-
-<p>Please note that this confirmation relates solely to compliance with the AML/CFT Act and does not infer any assurance regarding the legal, financial, or contractual aspects of the transaction.</p>
-
-<p>If you have any questions, please don’t hesitate to contact our compliance team, Halo AML (info@haloaml.com)<p/>
-
-<p>Yours sincerely,<br />
-The Halo Team<br />
-AML Compliance Coordinator></p>`,
+        subject: `${office}`,
+        html: `<p>Document received,thank you</p>`,
       });
     }
 
